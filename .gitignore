@@ -1,0 +1,8 @@
+# Compiled files
+*.class
+
+# Build folders
+bin/
+
+# VS Code (optional)
+.vscode/
