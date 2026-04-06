@@ -31,3 +31,24 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Java
+target/
+*.class
+
+# Python
+__pycache__/
+*.pyc
+
+# Embeddings (large file)
+embeddings/
+
+# Uploads
+C:/uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

@@ -37,15 +37,21 @@
 package com.backend.forensic_backend.controller;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
 import com.backend.forensic_backend.model.Result;
 import com.backend.forensic_backend.repository.ResultRepository;
 import com.backend.forensic_backend.model.Sketch;
 import com.backend.forensic_backend.repository.SketchRepository;
+import org.springframework.http.*;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/recognize")
@@ -58,34 +64,52 @@ public class RecognitionController {
     private SketchRepository sketchRepo;
 
     @PostMapping
-    public List<Result> recognize(@RequestParam String imagePath,
-                                 @RequestParam Long sketchId) {
+public List<Result> recognize(@RequestParam String imagePath,
+                             @RequestParam Long sketchId) {
 
-        // 🔥 get sketch from DB
-        Sketch sketch = sketchRepo.findById(sketchId).orElseThrow();
+    // 🔥 Get sketch from DB
+    Sketch sketch = sketchRepo.findById(sketchId).orElseThrow();
 
-        List<Result> results = new ArrayList<>();
+    // 🔥 Prepare API call
+    RestTemplate restTemplate = new RestTemplate();
 
-        // 🔥 MOCK DATA (replace with Python later)
-        Result r1 = new Result();
-        r1.setSketch(sketch);
-        r1.setMatchedPerson("John Doe");
-        r1.setMatchedFile("img1.jpg");
-        r1.setConfidence(0.95);
+    String url = "http://127.0.0.1:8000/recognize";
 
-        Result r2 = new Result();
-        r2.setSketch(sketch);
-        r2.setMatchedPerson("Jane Smith");
-        r2.setMatchedFile("img2.jpg");
-        r2.setConfidence(0.90);
+    // Request body for Python
+    Map<String, Object> requestBody = new HashMap<>();
+    requestBody.put("imagePath", imagePath);
+    requestBody.put("topK", 5);
 
-        // 🔥 SAVE TO DB
-        resultRepo.save(r1);
-        resultRepo.save(r2);
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
 
-        results.add(r1);
-        results.add(r2);
+    HttpEntity<Map<String, Object>> request =
+            new HttpEntity<>(requestBody, headers);
 
-        return results;
+    // 🔥 Call Python API
+    ResponseEntity<Map> response =
+            restTemplate.postForEntity(url, request, Map.class);
+
+    List<Map<String, Object>> pythonResults =
+            (List<Map<String, Object>>) response.getBody().get("results");
+
+    List<Result> results = new ArrayList<>();
+
+    // 🔥 Save results to DB
+    for (Map<String, Object> r : pythonResults) {
+
+        Result result = new Result();
+        result.setSketch(sketch);
+        result.setMatchedPerson((String) r.get("name"));
+        result.setMatchedFile((String) r.get("file"));
+        result.setConfidence(
+                Double.parseDouble(r.get("confidence").toString())
+        );
+
+        resultRepo.save(result);
+        results.add(result);
     }
+
+    return results;
+}
 }
