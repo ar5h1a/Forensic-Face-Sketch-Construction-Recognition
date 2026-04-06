@@ -1,8 +1,56 @@
+# ================= FRONTEND =================
 # Compiled files
 *.class
 
 # Build folders
 bin/
 
-# VS Code (optional)
+# ================= BACKEND (SPRING BOOT) =================
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ================= IDE FILES =================
+# STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# IntelliJ
+.idea
+*.iws
+*.iml
+*.ipr
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# VS Code
 .vscode/
+
+# ================= PYTHON =================
+__pycache__/
+*.pyc
+
+# ================= PROJECT FILES =================
+# Embeddings (AI)
+embeddings/
+
+# Uploads
+C:/uploads/
+
+# ================= OS =================
+.DS_Store
