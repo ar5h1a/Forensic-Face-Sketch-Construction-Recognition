@@ -318,7 +318,6 @@ public class MatchUI {
                         java.net.URL apiUrl = new java.net.URL(url);
                         java.net.HttpURLConnection conn =
                                 (java.net.HttpURLConnection) apiUrl.openConnection();
-                                
 
                         conn.setRequestMethod("POST");
                         conn.setDoOutput(true);
@@ -326,6 +325,7 @@ public class MatchUI {
                         conn.setReadTimeout(10000);
 
                         conn.setRequestProperty("Authorization", "Bearer " + SessionManager.getToken());
+                        
                         // Read response
                         java.io.BufferedReader reader = new java.io.BufferedReader(
                                 new java.io.InputStreamReader(conn.getInputStream())
@@ -342,54 +342,53 @@ public class MatchUI {
                         System.out.println("Backend Response: " + response.toString());
 
                         // Parse JSON response from actual backend
-                        // Backend returns array of Result objects with:
-                        // - matchedPerson: String (name)
-                        // - matchedFile: String (filename)
-                        // - confidence: Double (0.0-1.0 or percentage 0-100)
-                        
                         String responseStr = response.toString().trim();
                         System.out.println("Parsing response: " + responseStr);
-                        
-                        // Check if response has results
-                        boolean hasResults = responseStr.contains("\"matchedPerson\"") || 
-                                           responseStr.contains("matchedPerson");
                         
                         // Parse values from JSON (basic string extraction)
                         String matchName = extractStringFromJSON(responseStr, "matchedPerson");
                         String matchedFile = extractStringFromJSON(responseStr, "matchedFile");
                         double rawConfidence = extractDoubleFromJSON(responseStr, "confidence");
 
-                        final double confidence= (rawConfidence > 1.0)
+                        final double confidence = (rawConfidence > 1.0)
                                 ? rawConfidence / 100.0
                                 : rawConfidence;
 
                         System.out.println("Parsed: name=" + matchName + ", file=" + matchedFile + ", conf=" + confidence);
+                        
+                        // Check if response has valid results (match name must exist and not be empty)
+                        boolean hasResults = matchName != null && !matchName.isEmpty() && !matchName.equals("—");
+                        
+                        System.out.println("Has Results: " + hasResults + " | matchName: '" + matchName + "'");
 
                         // ✅ UPDATE UI ON JAVAFX THREAD WITH ORIGINAL STYLING
                         javafx.application.Platform.runLater(() -> {
-                            if (hasResults && !matchName.isEmpty()) {
-                                // ✅ SHOW IMAGE (FIX ADDED HERE)
-                            try {
-                                String matchedImagePath  = "C:/SketchApp/database/images/" + matchedFile; // adjust if needed
-                                System.out.println("Matched file: " + matchedFile);
-                                System.out.println("Full image path: " + matchedImagePath);
-                                File file = new File(matchedImagePath);
-
-                                if (!file.exists()) {
-                                    System.out.println("❌ FILE NOT FOUND: " + imagePath);
-                                } else {
-                                    System.out.println("✅ FILE FOUND");
-
-                                    Image matchedImage = new Image(file.toURI().toString());
-                                    matchedView.setImage(matchedImage);
-                                }
-
-                            } catch (Exception ex) {
-                                System.out.println("Error loading matched image: " + ex.getMessage());
-                            }
+                            if (hasResults) {
                                 // ✅ MATCH FOUND — PRESERVE ALL ORIGINAL COLORS & STYLING
-                                matchedView.setVisible(true);
-                                matchPlaceholder.setVisible(false);
+                                System.out.println("✅ MATCH FOUND - Updating UI");
+                                
+                                // Try to load matched image
+                                try {
+                                    String matchedImagePath = "C:/SketchApp/database/images/" + matchedFile;
+                                    System.out.println("Attempting to load image from: " + matchedImagePath);
+                                    File imageFile = new File(matchedImagePath);
+
+                                    if (imageFile.exists()) {
+                                        Image matchedImage = new Image(imageFile.toURI().toString());
+                                        matchedView.setImage(matchedImage);
+                                        matchedView.setVisible(true);
+                                        matchPlaceholder.setVisible(false);
+                                        System.out.println("✅ Image loaded successfully");
+                                    } else {
+                                        System.out.println("⚠️ Image file not found, showing placeholder instead");
+                                        matchedView.setVisible(false);
+                                        matchPlaceholder.setVisible(true);
+                                    }
+                                } catch (Exception ex) {
+                                    System.out.println("⚠️ Error loading matched image: " + ex.getMessage());
+                                    matchedView.setVisible(false);
+                                    matchPlaceholder.setVisible(true);
+                                }
 
                                 box2Inner.setStyle(
                                     "-fx-background-color: #1e232c;" +
@@ -431,12 +430,16 @@ public class MatchUI {
 
                             } else {
                                 // ✅ NO MATCH — PRESERVE ALL ORIGINAL COLORS & STYLING
+                                System.out.println("❌ NO MATCH FOUND");
                                 matchPlaceholderIcon.setText("✕");
                                 matchPlaceholderText.setText("No match found");
                                 matchPlaceholderIcon.setStyle(
                                     "-fx-font-size: 28px; -fx-text-fill: #c07a7a;");
                                 matchPlaceholderText.setStyle(
                                     "-fx-text-fill: #c07a7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';");
+
+                                matchedView.setVisible(false);
+                                matchPlaceholder.setVisible(true);
 
                                 lastMatchStatus[0] = "NO MATCH";
                                 lastMatchedRecord[0] = "—";
@@ -469,6 +472,9 @@ public class MatchUI {
 
                     } catch (Exception ex) {
                         ex.printStackTrace();
+                        System.err.println("API Error: " + ex.getMessage());
+                        ex.printStackTrace();
+                        
                         // ✅ ERROR STATE — PRESERVE STYLING
                         javafx.application.Platform.runLater(() -> {
                             matchStatus.setStyle(
