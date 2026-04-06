@@ -24,4 +24,23 @@ public class AuthService {
         }
         return null;
     }
+
+        @Autowired
+    private UserRepository userRepo;
+
+    public boolean signup(String username, String password) {
+
+        // check if user exists
+        if (userRepo.findByUsername(username) != null) {
+            return false;
+        }
+
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(password);
+
+        userRepo.save(user);
+
+        return true;
+}
 }

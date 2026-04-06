@@ -98,16 +98,79 @@ public class LoginUI {
         loginBtn.setOnAction(e -> {
             String user = username.getText().trim();
             String pass = password.getText();
+
             if (user.isEmpty() || pass.isEmpty()) {
-                message.setText("All fields required."); return;
+                message.setText("All fields required.");
+                return;
             }
-            if (user.equals("admin") && pass.equals("1234")) {
-                // Set logged in user for ProfileUI
-                ProfileUI.setCurrentUser(user);
-                stage.setScene(ChoiceUI.createChoiceScene(stage));
-            } else {
-                message.setText("Invalid credentials.");
+
+            new Thread(() -> {
+                try {
+                    String url = "http://localhost:8080/api/auth/login";
+
+                    java.net.URL apiUrl = new java.net.URL(url);
+                    java.net.HttpURLConnection conn =
+                            (java.net.HttpURLConnection) apiUrl.openConnection();
+
+                    conn.setRequestMethod("POST");
+                    conn.setDoOutput(true);
+                    conn.setRequestProperty("Content-Type", "application/json");
+
+                    // JSON body
+                    String jsonInput = "{ \"username\": \"" + user + "\", \"password\": \"" + pass + "\" }";
+
+                    java.io.OutputStream os = conn.getOutputStream();
+                    os.write(jsonInput.getBytes());
+                    os.flush();
+                    os.close();
+
+                    int responseCode = conn.getResponseCode();
+
+                    if (responseCode == 200) {
+
+                        java.io.BufferedReader reader = new java.io.BufferedReader(
+                                new java.io.InputStreamReader(conn.getInputStream())
+                        );
+
+                        StringBuilder response = new StringBuilder();
+                        String line;
+
+                        while ((line = reader.readLine()) != null) {
+                            response.append(line);
+                        }
+                        reader.close();
+
+                        String token = response.toString().trim();
+                     if (token.startsWith("Invalid")) {
+                javafx.application.Platform.runLater(() ->
+                    message.setText("Invalid credentials.")
+                );
+                return;
             }
+
+                        System.out.println("JWT Token: " + token);
+
+                        // ✅ SAVE TOKEN
+                        SessionManager.setToken(token);
+
+                        javafx.application.Platform.runLater(() -> {
+                            ProfileUI.setCurrentUser(user);
+                            stage.setScene(ChoiceUI.createChoiceScene(stage));
+                        });
+
+                    } else {
+                        javafx.application.Platform.runLater(() ->
+                                message.setText("Invalid credentials.")
+                        );
+                    }
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    javafx.application.Platform.runLater(() ->
+                            message.setText("Server error.")
+                    );
+                }
+            }).start();
         });
         signupBtn.setOnAction(e -> stage.setScene(SignupUI.createSignupScene(stage)));
 

@@ -24,7 +24,7 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         .csrf(csrf -> csrf.disable())
         .cors(cors -> {})   // 👈 ADD THIS LINE
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/auth/login").permitAll()
+            .requestMatchers("/api/auth/**").permitAll()
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

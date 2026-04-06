@@ -69,8 +69,7 @@
 import os
 import numpy as np
 import csv
-from scripts.utils import preprocess_image, extract_features, cosine_similarity
-
+from utils import preprocess_image, extract_features, cosine_similarity
 # 🔥 Base directory (forensic-backend root)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

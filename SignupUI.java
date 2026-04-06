@@ -82,22 +82,66 @@ public class SignupUI{
             // All validation passed
             setMsg(message, "✓ Creating account... Sending email...", true);
 
-            // Send email in background
-            new Thread(() -> {
-                boolean sent = sendSmtpEmail(userEmail, userName, userPass);
-                javafx.application.Platform.runLater(() -> {
-                    if (sent) {
-                        setMsg(message, "✓ SUCCESS! Email sent to " + userEmail, true);
-                        // Clear fields
-                        email.clear();
-                        username.clear();
-                        password.clear();
-                    } else {
-                        setMsg(message, "⚠️ Account created but email failed (config pending)", true);
-                    }
-                });
-            }).start();
-        });
+             // ✅ STEP 1: SAVE USER TO BACKEND (DB)
+    new Thread(() -> {
+        try {
+            String url = "http://localhost:8080/api/auth/signup";
+
+            java.net.URL apiUrl = new java.net.URL(url);
+            java.net.HttpURLConnection conn =
+                    (java.net.HttpURLConnection) apiUrl.openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+
+            String jsonInput = "{ \"username\": \"" + userName + "\", \"password\": \"" + userPass + "\" }";
+
+            java.io.OutputStream os = conn.getOutputStream();
+            os.write(jsonInput.getBytes());
+            os.flush();
+            os.close();
+
+            int responseCode = conn.getResponseCode();
+
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(conn.getInputStream())
+            );
+
+            StringBuilder response = new StringBuilder();
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            reader.close();
+
+            String res = response.toString();
+            System.out.println("Signup Response: " + res);
+
+            // ✅ STEP 2: AFTER DB SAVE → SEND EMAIL
+            boolean emailSent = sendSmtpEmail(userEmail, userName, userPass);
+
+            javafx.application.Platform.runLater(() -> {
+                if (res.toLowerCase().contains("created")) {
+                    setMsg(message, "✓ Account created! You can login now.", true);
+
+                    email.clear();
+                    username.clear();
+                    password.clear();
+                } else {
+                    setMsg(message, "⚠️ User already exists.", false);
+                }
+            });
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            javafx.application.Platform.runLater(() ->
+                    setMsg(message, "❌ Server error during signup.", false)
+            );
+        }
+    }).start();
+});
 
         backBtn.setOnAction(e -> stage.setScene(LoginUI.createLoginScene(stage)));
 

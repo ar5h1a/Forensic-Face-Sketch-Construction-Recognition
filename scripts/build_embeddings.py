@@ -41,7 +41,7 @@
 
 import os
 import numpy as np
-from scripts.utils import preprocess_image, extract_features
+from utils import preprocess_image, extract_features
 
 # 🔥 Base directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

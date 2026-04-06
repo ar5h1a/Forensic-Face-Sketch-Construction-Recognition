@@ -1,5 +1,6 @@
 {
   "java.project.referencedLibraries": [
     "C:/javafx17/javafx-sdk-17.0.18/lib/**/*.jar"
-  ]
+  ],
+  "java.compile.nullAnalysis.mode": "automatic"
 }

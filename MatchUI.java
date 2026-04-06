@@ -109,6 +109,7 @@ public class MatchUI {
 
         // Track uploaded image
         final Image[] uploadedImage = {null};
+        final File[] uploadedFile = {null};
 
         box1Inner.setOnMouseClicked(e -> {
             FileChooser fc = new FileChooser();
@@ -120,6 +121,7 @@ public class MatchUI {
             if (file != null) {
                 Image img = new Image(file.toURI().toString());
                 uploadedImage[0] = img;
+                uploadedFile[0] = file;
                 uploadedView.setImage(img);
                 uploadedView.setVisible(true);
                 uploadPlaceholder.setVisible(false);
@@ -206,13 +208,13 @@ public class MatchUI {
         Label box3Label = makeBoxLabel("ANALYSIS");
 
         // Similarity bar
-        Label simLabel     = makeStatLabel("MATCHED NAME");
+        Label simLabel     = makeStatLabel("CONFIDENCE SCORE");
         Label simValue     = makeStatValue("—");
         Rectangle simBarBg = makeBar();
         Rectangle simBarFg = makeBarFill(0, "#7aab7a");
 
         // Confidence bar
-        Label confLabel     = makeStatLabel("CONFIDENCE");
+        Label confLabel     = makeStatLabel("MATCH STRENGTH");
         Label confValue     = makeStatValue("—");
         Rectangle confBarBg = makeBar();
         Rectangle confBarFg = makeBarFill(0, "#7a9aab");
@@ -228,7 +230,7 @@ public class MatchUI {
         );
 
         // Database name row
-        Label dbNameLabel = makeStatLabel("DATABASE MATCH");
+        Label dbNameLabel = makeStatLabel("MATCHED PERSON");
         Label dbNameValue = new Label("—");
         dbNameValue.setStyle(
             "-fx-text-fill: #e8edff; -fx-font-size: 12px; -fx-font-family: 'Courier New';"
@@ -268,7 +270,6 @@ public class MatchUI {
         final double[] lastSimilarity = {0};
         final double[] lastConfidence = {0};
         
-        
         Button exportBtn = new Button("📥 Export as PDF");
         exportBtn.setStyle(
             "-fx-background-color: #333a47; -fx-text-fill: #c8cdd6;" +
@@ -278,145 +279,231 @@ public class MatchUI {
         );
         exportBtn.setVisible(false);
         exportBtn.setManaged(false);
+
         // ================================================================
-        // FIND MATCH ACTION
+        // FIND MATCH ACTION — BACKEND INTEGRATED
         // ================================================================
         findMatchBtn.setOnAction(e -> {
-            if (uploadedImage[0] == null) return;
+            try {
+                if (uploadedImage[0] == null) return;
 
-            // Simulate searching state
-            matchStatus.setStyle(
-                "-fx-text-fill: #7a9aab; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
-            );
-            matchStatus.setText("Searching database...");
-            matchBadge.setText("SEARCHING");
-            matchBadge.setStyle(
-                "-fx-background-color: #2b303a; -fx-text-fill: #7a9aab;" +
-                "-fx-font-size: 11px; -fx-font-family: 'Courier New'; -fx-font-weight: bold;" +
-                "-fx-padding: 5 12 5 12; -fx-background-radius: 3;" +
-                "-fx-border-color: #7a9aab; -fx-border-width: 1; -fx-border-radius: 3;" +
-                "-fx-letter-spacing: 2px;"
-            );
+                // ✅ SHOW SEARCHING STATE WITH ORIGINAL STYLING
+                matchStatus.setStyle(
+                    "-fx-text-fill: #7a9aab; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
+                );
+                matchStatus.setText("Searching database...");
+                matchBadge.setText("SEARCHING");
+                matchBadge.setStyle(
+                    "-fx-background-color: #2b303a; -fx-text-fill: #7a9aab;" +
+                    "-fx-font-size: 11px; -fx-font-family: 'Courier New'; -fx-font-weight: bold;" +
+                    "-fx-padding: 5 12 5 12; -fx-background-radius: 3;" +
+                    "-fx-border-color: #7a9aab; -fx-border-width: 1; -fx-border-radius: 3;" +
+                    "-fx-letter-spacing: 2px;"
+                );
 
-            // Simulate a delay then show placeholder result
-            // Replace this block with real DB/Python call when backend is ready
-            javafx.animation.PauseTransition delay =
-                new javafx.animation.PauseTransition(javafx.util.Duration.seconds(1.5));
-            delay.setOnFinished(ev -> {
-                // ── PLACEHOLDER RESULT ──
-                // When backend is connected, replace below with real values:
-                //   matchedView.setImage(new Image("file:resources/match/result.jpg"));
-                //   simValue.setText("95.97%");  confValue.setText("99.99%");
-                //   dbNameValue.setText("John Doe — ID #4821");
+                // Get file path
+                String imagePath = uploadedFile[0].getAbsolutePath().replace("\\", "/");
 
-                boolean matchFound = false; // ← flip to true when DB connected
+                // Backend API call on separate thread to avoid UI freezing
+                new Thread(() -> {
+                    try {
+                        // Backend URL
+                        String url = "http://localhost:8080/api/recognize?imagePath="
+                                + java.net.URLEncoder.encode(imagePath, "UTF-8") 
+                                + "&sketchId=1";
 
-                if (matchFound) {
-                    matchedView.setImage(
-                        new Image("file:resources/match/sample.jpg"));
-                    matchedView.setVisible(true);
-                    matchPlaceholder.setVisible(false);
-                    box2Inner.setStyle(
-                        "-fx-background-color: #1e232c;" +
-                        "-fx-border-color: #7aab7a; -fx-border-width: 1;" +
-                        "-fx-background-radius: 4; -fx-border-radius: 4;"
-                    );
+                        System.out.println("Calling API: " + url);
 
-                    simValue.setText("95.97%");
-                    confValue.setText("99.99%");
-                    dbNameValue.setText("sample.jpg");
-                    simBarFg.setWidth(200 * 0.9597);
-                    confBarFg.setWidth(200 * 0.9999);
+                        // Create connection
+                        java.net.URL apiUrl = new java.net.URL(url);
+                        java.net.HttpURLConnection conn =
+                                (java.net.HttpURLConnection) apiUrl.openConnection();
+                                
 
-                    lastMatchStatus[0] = "MATCH FOUND";
-                    lastMatchedRecord[0] = "sample.jpg";
-                    lastSimilarity[0] = 0.9597;
-                    lastConfidence[0] = 0.9999;
-                    
-                    exportBtn.setVisible(true);
-                    exportBtn.setManaged(true);
+                        conn.setRequestMethod("POST");
+                        conn.setDoOutput(true);
+                        conn.setConnectTimeout(10000);
+                        conn.setReadTimeout(10000);
 
-                    matchBadge.setText("MATCH FOUND");
-                    matchBadge.setStyle(
-                        "-fx-background-color: #1a2e1a; -fx-text-fill: #7aab7a;" +
-                        "-fx-font-size: 11px; -fx-font-family: 'Courier New'; -fx-font-weight: bold;" +
-                        "-fx-padding: 5 12 5 12; -fx-background-radius: 3;" +
-                        "-fx-border-color: #7aab7a; -fx-border-width: 1; -fx-border-radius: 3;" +
-                        "-fx-letter-spacing: 2px;"
-                    );
-                    matchStatus.setStyle(
-                        "-fx-text-fill: #7aab7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
-                    );
-                    matchStatus.setText("✓  Match found successful — Database record located");
-                    
-                    // Add to history
-                    MatchHistoryUI.addMatch("sketch.png", "sample.jpg", 0.9597, "MATCH FOUND");
+                        conn.setRequestProperty("Authorization", "Bearer " + SessionManager.getToken());
+                        // Read response
+                        java.io.BufferedReader reader = new java.io.BufferedReader(
+                                new java.io.InputStreamReader(conn.getInputStream())
+                        );
 
-                } else {
-                    // No match
-                    matchPlaceholderIcon.setText("✕");
-                    matchPlaceholderText.setText("No match found");
-                    matchPlaceholderIcon.setStyle(
-                        "-fx-font-size: 28px; -fx-text-fill: #c07a7a;");
-                    matchPlaceholderText.setStyle(
-                        "-fx-text-fill: #c07a7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';");
+                        StringBuilder response = new StringBuilder();
+                        String line;
 
-                    lastMatchStatus[0] = "NO MATCH";
-                    lastMatchedRecord[0] = "—";
-                    lastSimilarity[0] = 0;
-                    lastConfidence[0] = 0;
-                    
-                    exportBtn.setVisible(true);
-                    exportBtn.setManaged(true);
+                        while ((line = reader.readLine()) != null) {
+                            response.append(line);
+                        }
+                        reader.close();
 
-                    matchBadge.setText("NO MATCH");
-                    matchBadge.setStyle(
-                        "-fx-background-color: #2e1a1a; -fx-text-fill: #c07a7a;" +
-                        "-fx-font-size: 11px; -fx-font-family: 'Courier New'; -fx-font-weight: bold;" +
-                        "-fx-padding: 5 12 5 12; -fx-background-radius: 3;" +
-                        "-fx-border-color: #c07a7a; -fx-border-width: 1; -fx-border-radius: 3;" +
-                        "-fx-letter-spacing: 2px;"
-                    );
-                    matchStatus.setStyle(
-                        "-fx-text-fill: #c07a7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
-                    );
-                    matchStatus.setText("✗  No matching record found — Try uploading a different sketch");
-                    simValue.setText("—"); confValue.setText("—");
-                    dbNameValue.setText("—");
-                    
-                    // Add to history
-                    MatchHistoryUI.addMatch("sketch.png", "—", 0, "NO MATCH");
-                }
-            });
-            delay.play();
+                        System.out.println("Backend Response: " + response.toString());
+
+                        // Parse JSON response from actual backend
+                        // Backend returns array of Result objects with:
+                        // - matchedPerson: String (name)
+                        // - matchedFile: String (filename)
+                        // - confidence: Double (0.0-1.0 or percentage 0-100)
+                        
+                        String responseStr = response.toString().trim();
+                        System.out.println("Parsing response: " + responseStr);
+                        
+                        // Check if response has results
+                        boolean hasResults = responseStr.contains("\"matchedPerson\"") || 
+                                           responseStr.contains("matchedPerson");
+                        
+                        // Parse values from JSON (basic string extraction)
+                        String matchName = extractStringFromJSON(responseStr, "matchedPerson");
+                        String matchedFile = extractStringFromJSON(responseStr, "matchedFile");
+                        double rawConfidence = extractDoubleFromJSON(responseStr, "confidence");
+
+                        final double confidence= (rawConfidence > 1.0)
+                                ? rawConfidence / 100.0
+                                : rawConfidence;
+
+                        System.out.println("Parsed: name=" + matchName + ", file=" + matchedFile + ", conf=" + confidence);
+
+                        // ✅ UPDATE UI ON JAVAFX THREAD WITH ORIGINAL STYLING
+                        javafx.application.Platform.runLater(() -> {
+                            if (hasResults && !matchName.isEmpty()) {
+                                // ✅ SHOW IMAGE (FIX ADDED HERE)
+                            try {
+                                String matchedImagePath  = "C:/SketchApp/database/images/" + matchedFile; // adjust if needed
+                                System.out.println("Matched file: " + matchedFile);
+                                System.out.println("Full image path: " + matchedImagePath);
+                                File file = new File(matchedImagePath);
+
+                                if (!file.exists()) {
+                                    System.out.println("❌ FILE NOT FOUND: " + imagePath);
+                                } else {
+                                    System.out.println("✅ FILE FOUND");
+
+                                    Image matchedImage = new Image(file.toURI().toString());
+                                    matchedView.setImage(matchedImage);
+                                }
+
+                            } catch (Exception ex) {
+                                System.out.println("Error loading matched image: " + ex.getMessage());
+                            }
+                                // ✅ MATCH FOUND — PRESERVE ALL ORIGINAL COLORS & STYLING
+                                matchedView.setVisible(true);
+                                matchPlaceholder.setVisible(false);
+
+                                box2Inner.setStyle(
+                                    "-fx-background-color: #1e232c;" +
+                                    "-fx-border-color: #7aab7a; -fx-border-width: 1;" +
+                                    "-fx-background-radius: 4; -fx-border-radius: 4;"
+                                );
+
+                                // Use confidence value for both bars
+                                simValue.setText(String.format("%.2f%%", confidence * 100));
+                                confValue.setText(String.format("%.2f%%", confidence * 100));
+                                dbNameValue.setText(matchName);
+                                
+                                simBarFg.setWidth(200 * confidence);
+                                confBarFg.setWidth(200 * confidence);
+
+                                lastMatchStatus[0] = "MATCH FOUND";
+                                lastMatchedRecord[0] = matchName;
+                                lastSimilarity[0] = confidence;
+                                lastConfidence[0] = confidence;
+                                
+                                exportBtn.setVisible(true);
+                                exportBtn.setManaged(true);
+
+                                matchBadge.setText("MATCH FOUND");
+                                matchBadge.setStyle(
+                                    "-fx-background-color: #1a2e1a; -fx-text-fill: #7aab7a;" +
+                                    "-fx-font-size: 11px; -fx-font-family: 'Courier New'; -fx-font-weight: bold;" +
+                                    "-fx-padding: 5 12 5 12; -fx-background-radius: 3;" +
+                                    "-fx-border-color: #7aab7a; -fx-border-width: 1; -fx-border-radius: 3;" +
+                                    "-fx-letter-spacing: 2px;"
+                                );
+                                matchStatus.setStyle(
+                                    "-fx-text-fill: #7aab7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
+                                );
+                                matchStatus.setText("✓  Match found successful — Database record located");
+
+                                // Add to history
+                                MatchHistoryUI.addMatch(uploadedFile[0].getName(), matchName, confidence, "MATCH FOUND");
+
+                            } else {
+                                // ✅ NO MATCH — PRESERVE ALL ORIGINAL COLORS & STYLING
+                                matchPlaceholderIcon.setText("✕");
+                                matchPlaceholderText.setText("No match found");
+                                matchPlaceholderIcon.setStyle(
+                                    "-fx-font-size: 28px; -fx-text-fill: #c07a7a;");
+                                matchPlaceholderText.setStyle(
+                                    "-fx-text-fill: #c07a7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';");
+
+                                lastMatchStatus[0] = "NO MATCH";
+                                lastMatchedRecord[0] = "—";
+                                lastSimilarity[0] = 0;
+                                lastConfidence[0] = 0;
+                                
+                                exportBtn.setVisible(true);
+                                exportBtn.setManaged(true);
+
+                                matchBadge.setText("NO MATCH");
+                                matchBadge.setStyle(
+                                    "-fx-background-color: #2e1a1a; -fx-text-fill: #c07a7a;" +
+                                    "-fx-font-size: 11px; -fx-font-family: 'Courier New'; -fx-font-weight: bold;" +
+                                    "-fx-padding: 5 12 5 12; -fx-background-radius: 3;" +
+                                    "-fx-border-color: #c07a7a; -fx-border-width: 1; -fx-border-radius: 3;" +
+                                    "-fx-letter-spacing: 2px;"
+                                );
+                                matchStatus.setStyle(
+                                    "-fx-text-fill: #c07a7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
+                                );
+                                matchStatus.setText("✗  No matching record found — Try uploading a different sketch");
+                                simValue.setText("—"); 
+                                confValue.setText("—");
+                                dbNameValue.setText("—");
+
+                                // Add to history
+                                MatchHistoryUI.addMatch(uploadedFile[0].getName(), "—", 0, "NO MATCH");
+                            }
+                        });
+
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        // ✅ ERROR STATE — PRESERVE STYLING
+                        javafx.application.Platform.runLater(() -> {
+                            matchStatus.setStyle(
+                                "-fx-text-fill: #c07a7a; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
+                            );
+                            matchStatus.setText("✗  Backend error — Check server connection");
+                            
+                            matchBadge.setText("ERROR");
+                            matchBadge.setStyle(
+                                "-fx-background-color: #2e1a1a; -fx-text-fill: #c07a7a;" +
+                                "-fx-font-size: 11px; -fx-font-family: 'Courier New'; -fx-font-weight: bold;" +
+                                "-fx-padding: 5 12 5 12; -fx-background-radius: 3;" +
+                                "-fx-border-color: #c07a7a; -fx-border-width: 1; -fx-border-radius: 3;" +
+                                "-fx-letter-spacing: 2px;"
+                            );
+                            
+                            System.err.println("API Connection Error: " + ex.getMessage());
+                        });
+                    }
+                }).start();
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                matchStatus.setText("❌ Error preparing request");
+            }
         });
 
         // ================================================================
-        // MAIN LAYOUT
+        // EXPORT ACTION
         // ================================================================
-        HBox boxRow = new HBox(24, box1, box2, box3);
-        boxRow.setAlignment(Pos.TOP_CENTER);
-        boxRow.setPadding(new Insets(0, 30, 0, 30));
-
-        // Info strip at bottom
-        Label infoStrip = new Label(
-            "ℹ  Connect backend API to enable live database matching. " +
-            "Double-click the matched result to view full record. Use Export to save results."
-        );
-        infoStrip.setStyle(
-            "-fx-text-fill: #3e4451; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
-        );
-        infoStrip.setWrapText(true);
-        infoStrip.setMaxWidth(700);
-        infoStrip.setAlignment(Pos.CENTER);
-
-    
-
         exportBtn.setOnAction(e -> {
             String filename = "match_report_" + System.currentTimeMillis() + ".txt";
             String filepath = PDFExportService.getDefaultDownloadPath(filename);
             PDFExportService.exportMatchReport(
-                "sketch.png",
+                uploadedFile[0] != null ? uploadedFile[0].getName() : "sketch.png",
                 lastMatchedRecord[0],
                 lastSimilarity[0],
                 lastConfidence[0],
@@ -430,6 +517,25 @@ public class MatchUI {
             alert.showAndWait();
         });
 
+        // ================================================================
+        // MAIN LAYOUT
+        // ================================================================
+        HBox boxRow = new HBox(24, box1, box2, box3);
+        boxRow.setAlignment(Pos.TOP_CENTER);
+        boxRow.setPadding(new Insets(0, 30, 0, 30));
+
+        // Info strip at bottom
+        Label infoStrip = new Label(
+            "ℹ  Backend connected. Analyzing sketches in real-time. " +
+            "Double-click the matched result to view full record. Use Export to save results."
+        );
+        infoStrip.setStyle(
+            "-fx-text-fill: #3e4451; -fx-font-size: 11px; -fx-font-family: 'Courier New';"
+        );
+        infoStrip.setWrapText(true);
+        infoStrip.setMaxWidth(700);
+        infoStrip.setAlignment(Pos.CENTER);
+
         VBox content = new VBox(0, pageTitleBox, boxRow, exportBtn, infoStrip);
         content.setAlignment(Pos.TOP_CENTER);
         content.setPadding(new Insets(0, 0, 20, 0));
@@ -441,6 +547,45 @@ public class MatchUI {
         root.setStyle("-fx-background-color: #2b303a;");
 
         return new Scene(root, 900, 620);
+    }
+
+    // ================================================================
+    // HELPER METHODS FOR JSON PARSING
+    // ================================================================
+    private static double extractDoubleFromJSON(String json, String key) {
+        try {
+            String pattern = "\"" + key + "\":";
+            int startIdx = json.indexOf(pattern);
+            if (startIdx == -1) return 0.0;
+            
+            startIdx += pattern.length();
+            int endIdx = json.indexOf(",", startIdx);
+            if (endIdx == -1) endIdx = json.indexOf("}", startIdx);
+            if (endIdx == -1) endIdx = json.indexOf("]", startIdx);
+            
+            String valueStr = json.substring(startIdx, endIdx).trim();
+            return Double.parseDouble(valueStr);
+        } catch (Exception e) {
+            System.err.println("Error parsing double for key: " + key + ", error: " + e.getMessage());
+            return 0.0;
+        }
+    }
+
+    private static String extractStringFromJSON(String json, String key) {
+        try {
+            String pattern = "\"" + key + "\":\"";
+            int startIdx = json.indexOf(pattern);
+            if (startIdx == -1) return "";
+            
+            startIdx += pattern.length();
+            int endIdx = json.indexOf("\"", startIdx);
+            if (endIdx == -1) return "";
+            
+            return json.substring(startIdx, endIdx);
+        } catch (Exception e) {
+            System.err.println("Error parsing string for key: " + key + ", error: " + e.getMessage());
+            return "";
+        }
     }
 
     // ── Style helpers — matches DashboardUI palette ──

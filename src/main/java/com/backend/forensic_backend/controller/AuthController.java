@@ -25,4 +25,11 @@ public class AuthController {
         if (token != null) return token;
         return "Invalid credentials";
     }
+    @PostMapping("/signup")
+public String signup(@RequestBody User user) {
+    boolean created = service.signup(user.getUsername(), user.getPassword());
+
+    if (created) return "User created";
+    return "User already exists";
+}
 }

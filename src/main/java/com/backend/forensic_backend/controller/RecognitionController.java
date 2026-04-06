@@ -95,7 +95,7 @@ public List<Result> recognize(@RequestParam String imagePath,
 
     List<Result> results = new ArrayList<>();
 
-    // 🔥 Save results to DB
+    //  Save results to DB
     for (Map<String, Object> r : pythonResults) {
 
         Result result = new Result();

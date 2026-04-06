@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from scripts.recognize import recognize
-
+from recognize import recognize
 app = FastAPI()
 
 class RequestModel(BaseModel):

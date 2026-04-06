@@ -23,37 +23,50 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private JwtUtil jwtUtil;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                   HttpServletResponse response,
-                                   FilterChain filterChain)
-            throws ServletException, IOException {
+protected void doFilterInternal(HttpServletRequest request,
+                               HttpServletResponse response,
+                               FilterChain filterChain)
+        throws ServletException, IOException {
 
-        String authHeader = request.getHeader("Authorization");
+    String path = request.getServletPath();
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-
-            String token = authHeader.substring(7);
-
-            try {
-                String username = jwtUtil.extractUsername(token);
-
-                // ✅ THIS IS THE IMPORTANT PART
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                username,
-                                null,
-                                List.of(new SimpleGrantedAuthority("USER"))
-                        );
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                System.out.println("Authenticated user: " + username);
-
-            } catch (Exception e) {
-                System.out.println("Invalid JWT");
-            }
-        }
-
+    // ✅ ALLOW LOGIN & SIGNUP WITHOUT TOKEN
+    if (path.startsWith("/api/auth")) {
         filterChain.doFilter(request, response);
+        return;
     }
+
+    String authHeader = request.getHeader("Authorization");
+
+    // ❌ No token → block request
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.getWriter().write("Missing or invalid Authorization header");
+        return;
+    }
+
+    String token = authHeader.substring(7);
+
+    try {
+        String username = jwtUtil.extractUsername(token);
+
+        UsernamePasswordAuthenticationToken authToken =
+                new UsernamePasswordAuthenticationToken(
+                        username,
+                        null,
+                        List.of(new SimpleGrantedAuthority("USER"))
+                );
+
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+
+        System.out.println("✅ Authenticated user: " + username);
+
+    } catch (Exception e) {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.getWriter().write("Invalid JWT token");
+        return;
+    }
+
+    filterChain.doFilter(request, response);
+}
 }

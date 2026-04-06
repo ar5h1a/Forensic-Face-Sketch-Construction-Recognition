@@ -4,8 +4,12 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.beans.property.SimpleStringProperty;
 
 public class MatchHistoryUI {
+    private static ObservableList<String> matchHistoryData = FXCollections.observableArrayList();
 
     public static Scene createMatchHistoryScene(Stage stage) {
         // ── TOP BAR ──
@@ -54,25 +58,46 @@ public class MatchHistoryUI {
         statsBox.setStyle("-fx-background-color: #1e232c;");
         statsBox.setPadding(new Insets(16));
 
-        VBox stat1 = createStatBox("Total Matches", "0", "#7aab7a");
-        VBox stat2 = createStatBox("Matches Found", "0", "#7a9aab");
-        VBox stat3 = createStatBox("No Matches", "0", "#c07a7a");
-        VBox stat4 = createStatBox("Avg Confidence", "0%", "#abadb7");
+        Label totalLbl = new Label("0");
+        VBox stat1 = createStatBox("Total Matches", totalLbl, "#7aab7a");
+
+        Label foundLbl = new Label("0");
+        VBox stat2 = createStatBox("Matches Found", foundLbl, "#7a9aab");
+
+        Label noMatchLbl = new Label("0");
+        VBox stat3 = createStatBox("No Matches", noMatchLbl, "#c07a7a");
+
+        Label avgLbl = new Label("0%");
+        VBox stat4 = createStatBox("Avg Confidence", avgLbl, "#abadb7");
 
         statsBox.getChildren().addAll(stat1, stat2, stat3, stat4);
 
         // ── TABLE ──
-        TableView<String> table = new TableView<>();
+       TableView<String> table = new TableView<>();
         table.setStyle("-fx-font-size: 11px; -fx-font-family: 'Courier New';");
         table.setPrefHeight(300);
 
-        // Add sample data
-        table.getItems().addAll(
-            "sketch_001 | suspect_id_123 | 95.2% | MATCH FOUND | 2025-01-15 10:30",
-            "sketch_002 | suspect_id_456 | 88.7% | MATCH FOUND | 2025-01-15 11:00",
-            "sketch_003 | — | — | NO MATCH | 2025-01-15 11:45",
-            "sketch_004 | suspect_id_789 | 92.1% | MATCH FOUND | 2025-01-15 12:30"
-        );
+        // Bind table to stored history
+        table.setItems(matchHistoryData);
+        // Initial stats calculation
+        updateStats(totalLbl, foundLbl, noMatchLbl, avgLbl);
+
+        // Auto-update stats when new match is added
+        matchHistoryData.addListener((javafx.collections.ListChangeListener<String>) c -> {
+            updateStats(totalLbl, foundLbl, noMatchLbl, avgLbl);
+        });
+        /*matchHistoryData.addListener((javafx.collections.ListChangeListener<String>) c -> {
+        table.setItems(null);                  // 🔥 clear old reference
+        table.setItems(matchHistoryData);  
+    });*/
+
+        // Single column to display full row
+        TableColumn<String, String> col = new TableColumn<>("History");
+        col.setCellValueFactory(data -> new SimpleStringProperty(data.getValue()));
+        col.setPrefWidth(950);
+
+        table.getColumns().add(col);
+
 
         // ── BUTTONS ──
         HBox buttonBox = new HBox(12);
@@ -123,29 +148,69 @@ public class MatchHistoryUI {
         return new Scene(root, 1000, 700);
     }
 
-    private static VBox createStatBox(String label, String value, String color) {
-        Label labelLbl = new Label(label);
-        labelLbl.setStyle(
-            "-fx-text-fill: #8a9bb0; -fx-font-size: 10px;" +
-            "-fx-font-family: 'Courier New';"
-        );
+        private static VBox createStatBox(String label, Label valueLbl, String color) {
+            Label labelLbl = new Label(label);
+            labelLbl.setStyle(
+                "-fx-text-fill: #8a9bb0; -fx-font-size: 10px;" +
+                "-fx-font-family: 'Courier New';"
+            );
 
-        Label valueLbl = new Label(value);
-        valueLbl.setStyle(
-            "-fx-text-fill: " + color + "; -fx-font-size: 18px; -fx-font-weight: bold;" +
-            "-fx-font-family: 'Courier New';"
-        );
+            valueLbl.setStyle(
+                "-fx-text-fill: " + color + "; -fx-font-size: 18px; -fx-font-weight: bold;" +
+                "-fx-font-family: 'Courier New';"
+            );
 
-        VBox box = new VBox(4, labelLbl, valueLbl);
-        box.setAlignment(Pos.TOP_LEFT);
-        box.setPrefWidth(150);
-        return box;
-    }
-    public static void addMatch(String sketch, String result, double similarity, String status) {
+            VBox box = new VBox(4, labelLbl, valueLbl);
+            box.setAlignment(Pos.TOP_LEFT);
+            box.setPrefWidth(150);
+            return box;
+        }
+        public static void addMatch(String sketch, String result, double similarity, String status) {
+            System.out.println("ADD MATCH CALLED");
+        String timestamp = java.time.LocalDateTime.now()
+                .toString()
+                .replace("T", " ")
+                .substring(0, 19);
+
+        String row = sketch + " | " +
+                    (result != null ? result : "—") + " | " +
+                    String.format("%.2f%%", similarity) + " | " +
+                    status + " | " +
+                    timestamp;
+
+        matchHistoryData.add(row);
+
+        // Keep console logs (unchanged behavior)
         System.out.println("Saved Match:");
-        System.out.println("Sketch: " + sketch);
-        System.out.println("Result: " + result);
-        System.out.println("Similarity: " + similarity);
-        System.out.println("Status: " + status);
+        System.out.println(row);
     }
+
+
+    private static void updateStats(Label totalLbl, Label foundLbl, Label noMatchLbl, Label avgLbl) {
+    int total = matchHistoryData.size();
+    int found = 0;
+    int noMatch = 0;
+    double sum = 0;
+
+    for (String row : matchHistoryData) {
+        if (row.contains("MATCH FOUND")) {
+            found++;
+
+            try {
+                String[] parts = row.split("\\|");
+                String confStr = parts[2].trim().replace("%", "");
+                sum += Double.parseDouble(confStr);
+            } catch (Exception ignored) {}
+        } else {
+            noMatch++;
+        }
+    }
+
+    double avg = found > 0 ? sum / found : 0;
+
+    totalLbl.setText(String.valueOf(total));
+    foundLbl.setText(String.valueOf(found));
+    noMatchLbl.setText(String.valueOf(noMatch));
+    avgLbl.setText(String.format("%.2f%%", avg));
+}
 }
